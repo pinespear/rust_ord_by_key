@@ -1,8 +1,14 @@
 [package]
 authors = ["Kris Pinespear <pinespear@outlook.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2018"
 name = "ord_by_key"
+description = "Provides a convenient macro for implementing Ord trait with logic specified in an inline expression"
+homepage = "https://github.com/pinespear/rust_ord_by_key"
+repository = "https://github.com/pinespear/rust_ord_by_key"
+keywords = ["ord"]
 version = "0.1.0"
+
 
 [lib]
 proc-macro = true
