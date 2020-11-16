@@ -2,7 +2,7 @@
 //! specified in an inline expression
 //!
 //! ```
-//! # #[macro_use] extern crate ord_by_key;
+//! use ord_by_key::ord_eq_by_key_selector;
 //! use core::cmp::Reverse;
 //! // `Person` will be ordered by `last_name`, then by `first_name`, then by `age` in reverse
 //! #[ord_eq_by_key_selector(|p|
@@ -17,7 +17,7 @@
 //! ```
 //!
 //! ```
-//! # #[macro_use] extern crate ord_by_key;
+//! use ord_by_key::ord_eq_by_key_selector;
 //! // Container for [`&str`] which will be ordered by underlying string length
 //! #[ord_eq_by_key_selector(|s| s.0.len())]
 //! pub struct StrByLen<'a> (&'a str);
@@ -80,7 +80,7 @@ use syn::Token;
 ///
 /// In simple case, key expression returns one of fields from the underlying struct.
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
+/// use ord_by_key::ord_eq_by_key_selector;
 /// // `Person` will be ordered by it's field `age`
 /// #[ord_eq_by_key_selector(|p| p.age)]
 /// pub struct Person {
@@ -92,7 +92,7 @@ use syn::Token;
 ///
 /// If return type does not implement [`Copy`], expression should return borrowed value
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
+/// use ord_by_key::ord_eq_by_key_selector;
 /// // `Person` will be ordered by it's field `last_name`
 /// #[ord_eq_by_key_selector(|p| &p.last_name)]
 /// pub struct Person {
@@ -106,7 +106,7 @@ use syn::Token;
 /// Note, that parameter name should be specified only once, and each of expressions can
 /// use it
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
+/// use ord_by_key::ord_eq_by_key_selector;
 /// // `Person` will be ordered by `last_name`, then by `first_name`
 /// #[ord_eq_by_key_selector(|p|
 ///     &p.last_name,
@@ -121,7 +121,7 @@ use syn::Token;
 /// If struct should be sorted by some keys in reverse order, you can use [`::core::cmp::Reverse`]
 /// container for values which should be sorted in reverse:
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
+/// use ord_by_key::ord_eq_by_key_selector;
 /// use core::cmp::Reverse;
 /// // `Person` will be ordered by `last_name`, then by `first_name`, then by `age` in reverse
 /// #[ord_eq_by_key_selector(|p|
@@ -138,7 +138,7 @@ use syn::Token;
 /// You can use multi-line block expression and access multiple fields. You can use explicit
 /// `return`
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
+/// use ord_by_key::ord_eq_by_key_selector;
 /// // Sort Point by distance from the (0,0)
 /// #[ord_eq_by_key_selector(|p|
 ///     {
@@ -167,12 +167,12 @@ use syn::Token;
 /// implement more complicated containers.
 ///
 /// Let's say, we want to sort integers by their absolute value, and then by the actual value.
-/// We cannot introduce new sort logic to i32 because it already implements [`Ord`], but we can
-/// introduce container for i32 which has custom sorting logic. Note that we are using struct
+/// We cannot introduce new sorting logic to [`i32`] because it already implements [`Ord`], but we can
+/// introduce container for [`i32`] which has custom sorting logic. Note that we are using struct
 /// with anonymous field and have to access field using `.0`
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
-/// // Container for [`i32`] will be ordered by absolute value, then by actual values
+/// use ord_by_key::ord_eq_by_key_selector;
+/// // Container for `i32` will be ordered by absolute value, then by actual value
 /// #[ord_eq_by_key_selector(|i| i.0.abs(), i.0)]
 /// pub struct I32ByAbs(i32);
 ///
@@ -184,7 +184,7 @@ use syn::Token;
 ///
 /// You can use more complicated containers with generic and constraints
 /// ```
-/// # #[macro_use] extern crate ord_by_key;
+/// use ord_by_key::ord_eq_by_key_selector;
 /// use core::cmp::Reverse;
 /// use std::collections::BinaryHeap;
 /// use std::fmt::Debug;
@@ -197,7 +197,9 @@ use syn::Token;
 ///     #[ord_eq_by_key_selector(|i| &i.0)]
 ///     // Note that inner struct cannot use generic parameters from the outer function
 ///     // (error[E0401]) so they have to be re-defined with constraints.
-///     struct ItemIter<T: Ord + Debug, I: Iterator<Item = T>>(T, I);
+///     // For the sorting container, the only constraint which we care about is `T : Ord`
+///     // because we are using the value as a sorting key
+///     struct ItemIter<T: Ord, I>(T, I);
 ///
 ///     for mut iterator in iterators {
 ///         if let Some(item) = iterator.next() {

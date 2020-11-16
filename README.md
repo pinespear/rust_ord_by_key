@@ -4,7 +4,8 @@ specified in an inline expression
 
 ```rust
 use core::cmp::Reverse;
-// `Person` will be ordered by `last_name`, then by `first_name`, then by `age` in reverse
+// `Person` will be ordered by `last_name`, then by 
+// `first_name`, then by `age` in reverse
 #[ord_eq_by_key_selector(|p|
     &p.last_name,
     &p.first_name,
@@ -17,11 +18,12 @@ pub struct Person {
 ```
 
 ```rust
-// Container for `&str` which will be ordered by underlying string length
+// Container for `&str` which will be ordered by underlying
+// string length
 #[ord_eq_by_key_selector(|s| s.0.len())]
 pub struct StrByLen<'a> (&'a str);
 
-assert!(StrByLen("Alex") > StrByLen("Bob"))
+assert!(StrByLen("Alex") > StrByLen("Bob"));
 ```
 
 # License
