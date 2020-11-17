@@ -22,7 +22,10 @@
 //! #[ord_eq_by_key_selector(|s| s.0.len())]
 //! pub struct StrByLen<'a> (&'a str);
 //!
-//! assert!(StrByLen("Alex") > StrByLen("Bob"))
+//! // Note, comparison happens just based on string length
+//! assert!(StrByLen("Alex") > StrByLen("Bob"));
+//! assert!(StrByLen("Alex") == StrByLen("John"));
+//! assert!(StrByLen("Alex") < StrByLen("Michael"));
 //! ```
 
 #![deny(missing_docs)]
@@ -100,6 +103,7 @@ use syn::Token;
 ///     pub last_name: String,
 ///     pub age: usize,
 /// }
+///
 /// ```
 ///
 /// If struct should be sorted by multiple fields, multiple expressions can be provided.
@@ -218,7 +222,6 @@ use syn::Token;
 ///     }
 /// }
 /// ```
-///
 #[proc_macro_attribute]
 pub fn ord_eq_by_key_selector(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as MacroAttribute);
@@ -255,7 +258,7 @@ pub fn ord_eq_by_key_selector(attr: TokenStream, item: TokenStream) -> TokenStre
 
                     let result = key_self.eq(&key_other);
 
-                    if result != false {
+                    if result != true {
                         return result;
                     }
                 )*
