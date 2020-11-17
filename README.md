@@ -29,5 +29,12 @@ assert!(StrByLen("Alex") > StrByLen("Bob"));
 ## [`no_std`](https://rust-embedded.github.io/book/intro/no-std.html) support
 `ord_by_key` should be compatible with `no_std`, but it was not tested.
 
+## TODO
+
+- [x] Better parameters syntax for structs with unnamed fields
+- [ ] Support enums
+- [ ] Support `_` in parameter definition
+- [ ] Test with `no_std`
+
 # License
 Distributed under the terms of both the MIT license and the Apache License (Version 2.0)
