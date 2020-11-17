@@ -1,4 +1,4 @@
-# rust_ord_by_key
+# ord_by_key
 Provides a convenient macro for implementing Ord trait with logic
 specified in an inline expression
 
@@ -25,6 +25,9 @@ pub struct StrByLen<'a> (&'a str);
 
 assert!(StrByLen("Alex") > StrByLen("Bob"));
 ```
+
+## [`no_std`](https://rust-embedded.github.io/book/intro/no-std.html) support
+`ord_by_key` should be compatible with `no_std`, but it was not tested.
 
 # License
 Distributed under the terms of both the MIT license and the Apache License (Version 2.0)
