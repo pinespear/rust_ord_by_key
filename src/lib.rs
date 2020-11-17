@@ -19,7 +19,7 @@
 //! ```
 //! use ord_by_key::ord_eq_by_key_selector;
 //! // Container for [`&str`] which will be ordered by underlying string length
-//! #[ord_eq_by_key_selector(|s| s.0.len())]
+//! #[ord_eq_by_key_selector(|(s)| s.len())]
 //! pub struct StrByLen<'a> (&'a str);
 //!
 //! // Note, comparison happens just based on string length
@@ -33,8 +33,11 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
+use syn::parenthesized;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
+use syn::punctuated::Punctuated;
+use syn::token;
 use syn::Expr;
 use syn::Ident;
 use syn::ItemStruct;
@@ -50,24 +53,36 @@ use syn::Token;
 ///
 /// # Syntax
 /// ```compile_fail
-/// #[ord_eq_by_key_selector(|parameter_name| key_expressoin, key_expressoin, ...)]
+/// #[ord_eq_by_key_selector(|parameter| key_expressoin, key_expressoin, ...)]
 /// pub struct MyStruct {...}
+///
+/// #[ord_eq_by_key_selector(|(parameter, parameter, ...)| key_expressoin, key_expressoin, ...)]
+/// pub struct MyStruct (...)
 /// ```
-/// * `parameter_name` - name of the parameter which will contain reference to the struct
-/// value from which key is being extracted (type `&MyStruct`). It can be any identifier
-/// (similar to how parameters are defined in a closure).
+/// * `parameter` - definition of the parameter or parameters which key expressions can use
+/// to access underlying struct or fields within the struct. There are 2 options for defining
+/// parameters:
+///     * `|a|` - this syntax is similar to syntax of a regular closure definition. There can be
+///       only one parameter name. Key expressions can access this parameter as a variable, it will
+///       have type `&Self`. Note that you can use this option for structs either with named or unnamed
+///       fields
+///     * `|(a, b, c, ...)|` - this syntax can be used if underlying struct is a defined with unnamed
+///       fields (e.g. `struct Hello(i32, String);`) to destruct reference to struct into a few references
+///       to individual fields in the struct. Number of parameter names must match number of fields in
+///       the struct.
+///
 /// * `key_expression` - expression which produces a key for comparison. Expression can
 /// access `parameter_name` input and must return `impl Ord`. Multiple expressions can be
 /// provided, comma-separated (last comma is optional). Expression can be single-line, or
 /// multi-line enclosed in `{}`.
-/// * `pub struct MyStruct {...}` - definition of struct for which [`Ord`], [`PartialOrd`],
+/// * `pub struct MyStruct ...` or  - definition of struct for which [`Ord`], [`PartialOrd`],
 /// [`PartialEq`] and [`Eq`] will be implemented
 ///
 /// # Comparison logic
 /// Let's look at [`Ord::cmp`] implementation (rest of traits have similar implementation logic)
 ///
-/// When 2 values `a` and `b` are compared using auto-implemented comparison method, following
-/// logic will be executed:
+/// When 2 values `a` and `b` are compared using auto-implemented comparison method, lexicographic
+/// comparison logic will be executed:
 ///
 /// 1) use specified `key_expression`, and evaluate comparison keys for `a` and `b` (`key_a` and `key_b`)
 /// 2) compare `key_a` and `key_b` using their own [`Ord`] implementaiton
@@ -172,12 +187,12 @@ use syn::Token;
 ///
 /// Let's say, we want to sort integers by their absolute value, and then by the actual value.
 /// We cannot introduce new sorting logic to [`i32`] because it already implements [`Ord`], but we can
-/// introduce container for [`i32`] which has custom sorting logic. Note that we are using struct
-/// with anonymous field and have to access field using `.0`
+/// introduce container for [`i32`] which has custom sorting logic. Note that struct is defined with
+/// unnamed fields and we are using syntax to destruct it to individual fields
 /// ```
 /// use ord_by_key::ord_eq_by_key_selector;
 /// // Container for `i32` will be ordered by absolute value, then by actual value
-/// #[ord_eq_by_key_selector(|i| i.0.abs(), i.0)]
+/// #[ord_eq_by_key_selector(|(i)| i.abs(), i)]
 /// pub struct I32ByAbs(i32);
 ///
 /// let a = I32ByAbs(10);
@@ -198,7 +213,7 @@ use syn::Token;
 ///     let mut heap = BinaryHeap::new();
 ///
 ///     // Container for iterator and it's last value, ordered by value
-///     #[ord_eq_by_key_selector(|i| &i.0)]
+///     #[ord_eq_by_key_selector(|(value, iter)| value)]
 ///     // Note that inner struct cannot use generic parameters from the outer function
 ///     // (error[E0401]) so they have to be re-defined with constraints.
 ///     // For the sorting container, the only constraint which we care about is `T : Ord`
@@ -226,7 +241,22 @@ use syn::Token;
 pub fn ord_eq_by_key_selector(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as MacroAttribute);
 
-    let key_selector_param = &attr.param;
+    let key_selector_param = match &attr.param {
+        ParamDefinition::SingleIdentifier(ident) => {
+            quote! {#ident}
+        }
+        ParamDefinition::Tuple(tuple) => {
+            quote! {
+                Self (
+                    #(
+                        #tuple ,
+                    )*
+                )
+
+            }
+        }
+    };
+
     let key_selectors = &attr.key_selectors;
     let key_selector_func_names: Vec<_> = (0..key_selectors.len())
         .map(|i| format!("_ord_eq_by_key_selector_{}", i))
@@ -244,7 +274,17 @@ pub fn ord_eq_by_key_selector(attr: TokenStream, item: TokenStream) -> TokenStre
 
         impl #impl_generics #structure_name #ty_generics #where_clause {
             #(
-                fn #key_selector_func_names  (#key_selector_param: &Self) -> impl ::core::cmp::Ord + '_ {
+                fn #key_selector_func_names  (_ord_eq_by_key_selector_do_not_use: &Self) -> impl ::core::cmp::Ord + '_ {
+                    // We should allow unused variables here to avoid unnecessary warnings in case caller is
+                    // using syntax |(a,b,c)| to destruct tuple type but not using all of components of the
+                    // tuple in key construction
+                    #[allow(unused_variables)]
+                    let #key_selector_param = _ord_eq_by_key_selector_do_not_use;
+
+                    // TODO: Re-define input parameter _ord_eq_by_key_selector_do_not_use, so key
+                    // selector won't be able to do unintentional access to it (all accesses should
+                    // go through user-defined parameter names)
+
                     #key_selectors
                 }
             )*
@@ -302,9 +342,14 @@ pub fn ord_eq_by_key_selector(attr: TokenStream, item: TokenStream) -> TokenStre
 /// Last comma is optional
 struct MacroAttribute {
     _bar1: Token![|],
-    param: Ident,
+    param: ParamDefinition,
     _bar2: Token![|],
     key_selectors: Vec<Expr>,
+}
+
+enum ParamDefinition {
+    SingleIdentifier(Ident),
+    Tuple(Vec<Ident>),
 }
 
 impl Parse for MacroAttribute {
@@ -334,5 +379,23 @@ impl Parse for MacroAttribute {
                 exprs
             },
         })
+    }
+}
+
+impl Parse for ParamDefinition {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(token::Paren) {
+            let content;
+            let _ = parenthesized!(content in input);
+
+            let params: Punctuated<Ident, Token![,]> = content.parse_terminated(Ident::parse)?;
+
+            let params: Vec<_> = params.into_iter().collect();
+
+            return Ok(ParamDefinition::Tuple(params));
+        }
+
+        let ident: Ident = input.parse()?;
+        return Ok(ParamDefinition::SingleIdentifier(ident));
     }
 }

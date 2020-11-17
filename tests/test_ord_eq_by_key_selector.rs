@@ -3,10 +3,10 @@ mod tests {
     use ::core::cmp::Ordering;
     use ord_by_key::ord_eq_by_key_selector;
 
-    #[ord_eq_by_key_selector(|i| i.0)]
+    #[ord_eq_by_key_selector(|(i0)| i0)]
     pub struct T1(i32);
 
-    #[ord_eq_by_key_selector(|i| i.0, i.1)]
+    #[ord_eq_by_key_selector(|(i0, i1)| i0, i1)]
     pub struct T2(i32, i32);
 
     #[test]

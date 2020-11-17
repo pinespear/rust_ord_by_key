@@ -20,8 +20,8 @@ pub struct Person {
 ```rust
 // Container for `&str` which will be ordered by underlying
 // string length
-#[ord_eq_by_key_selector(|s| s.0.len())]
-pub struct StrByLen<'a> (&'a str);
+#[ord_eq_by_key_selector(|(s)| s.len())]
+pub struct StrByLen<'a>(&'a str);
 
 assert!(StrByLen("Alex") > StrByLen("Bob"));
 ```
